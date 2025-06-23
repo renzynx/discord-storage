@@ -4,6 +4,47 @@ import { files, chunks } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { decryptUploadKey } from "@/lib/crypto.server";
 
+// Helper to refresh expired chunk URLs in batches
+async function refreshChunkUrls(chunksToRefresh: any[]) {
+  const urls = chunksToRefresh.map((c) => c.url);
+  const payload = {
+    method: "POST",
+    headers: {
+      Authorization: process.env.DISCORD_TOKEN || "",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ attachment_urls: urls }),
+  };
+  const res = await fetch(
+    "https://discord.com/api/v9/attachments/refresh-urls",
+    payload
+  );
+  if (!res.ok) throw new Error("Failed to refresh Discord URLs");
+  const json = await res.json();
+  // Discord returns { refreshed_urls: [{ url, refreshed }] }
+  if (
+    Array.isArray(json?.refreshed_urls) &&
+    json?.refreshed_urls[0].refreshed
+  ) {
+    // Update fileChunks and DB with new urls and expiries
+    for (let i = 0; i < json.refreshed_urls.length; i++) {
+      const refreshed = json.refreshed_urls[i];
+      const url = refreshed.url;
+      const params = new URL(url).searchParams;
+      const expr = new Date(parseInt(params.get("ex") ?? "", 16) * 1000);
+      // Update in DB
+      await db
+        .update(chunks)
+        .set({ url, url_expires: expr })
+        .where(eq(chunks.url, urls[i]));
+      // Also update in-memory
+      chunksToRefresh[i].url = url;
+      chunksToRefresh[i].url_expires = expr;
+    }
+  }
+  return json.refreshed_urls;
+}
+
 // Helper function to safely encode filename for Content-Disposition header
 function encodeFilename(filename: string) {
   // Remove or replace problematic characters and encode for RFC 5987
@@ -52,6 +93,31 @@ export async function GET(
 
   // Stream the chunks with a small concurrency window (e.g., 3)
   const CONCURRENCY = 5;
+
+  const now = Date.now();
+  // Find chunks with expired or soon-to-expire URLs (5 min buffer)
+  const EXPIRE_BUFFER_MS = 5 * 60 * 1000;
+  const expiredChunks = fileChunks.filter(
+    (c) =>
+      c.url_expires &&
+      new Date(c.url_expires).getTime() < now + EXPIRE_BUFFER_MS
+  );
+
+  if (expiredChunks.length > 0) {
+    // Refresh in batches of 10
+    for (let i = 0; i < expiredChunks.length; i += 10) {
+      const batch = expiredChunks.slice(i, i + 10);
+      const refreshed = await refreshChunkUrls(batch);
+      // Update fileChunks with new urls and expiries
+      for (let j = 0; j < batch.length; j++) {
+        const idx = fileChunks.findIndex((c) => c.id === batch[j].id);
+        if (idx !== -1) {
+          fileChunks[idx].url = refreshed[j].url;
+          fileChunks[idx].url_expires = refreshed[j].url_expires;
+        }
+      }
+    }
+  }
 
   const stream = new ReadableStream({
     async start(controller) {

@@ -37,7 +37,7 @@ const handler = async (request: NextRequest) => {
     .values({
       uuid: uploadId,
       name: filename,
-      type: mimeType,
+      type: mimeType || "application/octet-stream",
       encryption_key: encryptedUploadKey,
       size, // Store the provided size
     })

@@ -59,25 +59,28 @@ export async function GET(
                 throw new Error(`Failed to fetch chunk: ${chunk.url}`);
               const encrypted = Buffer.from(await res.arrayBuffer());
               const iv: Buffer = (() => {
-                if (Buffer.isBuffer(chunk.iv)) {
-                  return chunk.iv;
-                } else if (typeof chunk.iv === "string") {
-                  // Try base64 first, then hex, else throw
+                if (typeof chunk.iv === "string") {
+                  let buf: Buffer;
                   try {
-                    let buf = Buffer.from(chunk.iv, "base64");
-                    if (buf.length !== 12) throw new Error(); // AES-GCM IV is 12 bytes
-                    return buf;
+                    buf = Buffer.from(chunk.iv, "base64");
                   } catch {
-                    try {
-                      let buf = Buffer.from(chunk.iv, "hex");
-                      if (buf.length !== 12) throw new Error();
-                      return buf;
-                    } catch {
-                      throw new Error(
-                        `Invalid IV format for chunk: ${chunk.iv}`
-                      );
-                    }
+                    throw new Error(
+                      `IV for chunk is not valid base64: ${chunk.iv}`
+                    );
                   }
+                  if (buf.length !== 12) {
+                    throw new Error(
+                      `IV for chunk is not 12 bytes after base64 decode: got ${buf.length}`
+                    );
+                  }
+                  return buf;
+                } else if (Buffer.isBuffer(chunk.iv)) {
+                  if (chunk.iv.length !== 12) {
+                    throw new Error(
+                      `IV buffer for chunk is not 12 bytes: got ${chunk.iv.length}`
+                    );
+                  }
+                  return chunk.iv;
                 } else {
                   throw new Error(`IV is not a string or Buffer: ${chunk.iv}`);
                 }

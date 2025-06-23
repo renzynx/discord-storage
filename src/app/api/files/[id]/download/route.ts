@@ -68,7 +68,7 @@ export async function GET(
                       `IV for chunk is not valid base64: ${chunk.iv}`
                     );
                   }
-                  if (buf.length !== 12) {
+                  if (!Buffer.isBuffer(buf) || buf.length !== 12) {
                     throw new Error(
                       `IV for chunk is not 12 bytes after base64 decode: got ${buf.length}`
                     );
@@ -82,7 +82,9 @@ export async function GET(
                   }
                   return chunk.iv;
                 } else {
-                  throw new Error(`IV is not a string or Buffer: ${chunk.iv}`);
+                  throw new Error(
+                    `IV is not a string or Buffer: ${JSON.stringify(chunk.iv)}`
+                  );
                 }
               })();
               const authTag = encrypted.slice(encrypted.length - 16);
@@ -99,7 +101,15 @@ export async function GET(
               ]);
               return { decrypted, error: null };
             } catch (e) {
-              return { decrypted: null, error: e };
+              // Attach IV and error message for easier debugging
+              return {
+                decrypted: null,
+                error: new Error(
+                  `Failed to decrypt chunk: ${chunk.url}\nIV: ${JSON.stringify(
+                    chunk.iv
+                  )}\nError: ${e instanceof Error ? e.message : e}`
+                ),
+              };
             }
           })
         );

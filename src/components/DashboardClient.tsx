@@ -1,5 +1,5 @@
 "use client";
-import DashboardSkeleton from "@/components/DashboardSkeleton";
+
 import FilesTable from "@/components/FilesTable";
 import LogoutButton from "@/components/LogoutButton";
 import Upload from "@/components/Upload";

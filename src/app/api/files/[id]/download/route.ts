@@ -7,12 +7,12 @@ import { decryptUploadKey } from "@/lib/crypto.server";
 // GET /api/files/[id]/stream
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   // No auth check for stream download
 
   // Use uuid for file lookup
-  const fileUuid = params.id;
+  const fileUuid = (await params).id;
   // Get file metadata
   const file = await db
     .select()

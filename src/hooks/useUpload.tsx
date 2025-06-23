@@ -194,7 +194,8 @@ export default function useUpload(webhooks?: any[]) {
           chunkUrls[i] = await queue.send(sendWithRateLimit);
         };
 
-        const concurrency = 3;
+        const concurrency = 5;
+
         const semaphore = new Semaphore(concurrency);
         await Promise.all(
           chunks.map(async (_, i) => {

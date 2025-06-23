@@ -41,7 +41,8 @@ export async function GET(
   fileChunks.sort((a, b) => a.index - b.index);
 
   // Stream the chunks with a small concurrency window (e.g., 3)
-  const CONCURRENCY = 3;
+  const CONCURRENCY = 5;
+
   const stream = new ReadableStream({
     async start(controller) {
       const crypto = await import("crypto");

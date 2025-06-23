@@ -4,6 +4,16 @@ import { files, chunks } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { decryptUploadKey } from "@/lib/crypto.server";
 
+// Helper function to safely encode filename for Content-Disposition header
+function encodeFilename(filename) {
+  // Remove or replace problematic characters and encode for RFC 5987
+  const sanitized = filename.replace(/[^\w\s.-]/g, "_"); // Replace non-ASCII chars with underscore
+  const encoded = encodeURIComponent(filename);
+
+  // Use RFC 5987 format for better Unicode support
+  return `filename*=UTF-8''${encoded}; filename="${sanitized}"`;
+}
+
 // GET /api/files/[id]/stream
 export async function GET(
   req: NextRequest,
@@ -131,8 +141,8 @@ export async function GET(
   return new NextResponse(stream, {
     status: 200,
     headers: {
-      "Content-Type": file.type,
-      "Content-Disposition": `attachment; filename=\"${file.name}\"`,
+      "Content-Type": file.type || "application/octet-stream",
+      "Content-Disposition": `attachment; ${encodeFilename(file.name)}`,
       "Content-Length": file.size.toString(), // Use the size from file metadata
     },
   });

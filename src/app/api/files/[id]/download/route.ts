@@ -58,9 +58,30 @@ export async function GET(
               if (!res.ok)
                 throw new Error(`Failed to fetch chunk: ${chunk.url}`);
               const encrypted = Buffer.from(await res.arrayBuffer());
-              const iv = Buffer.isBuffer(chunk.iv)
-                ? chunk.iv
-                : Buffer.from(chunk.iv, "base64");
+              const iv: Buffer = (() => {
+                if (Buffer.isBuffer(chunk.iv)) {
+                  return chunk.iv;
+                } else if (typeof chunk.iv === "string") {
+                  // Try base64 first, then hex, else throw
+                  try {
+                    let buf = Buffer.from(chunk.iv, "base64");
+                    if (buf.length !== 12) throw new Error(); // AES-GCM IV is 12 bytes
+                    return buf;
+                  } catch {
+                    try {
+                      let buf = Buffer.from(chunk.iv, "hex");
+                      if (buf.length !== 12) throw new Error();
+                      return buf;
+                    } catch {
+                      throw new Error(
+                        `Invalid IV format for chunk: ${chunk.iv}`
+                      );
+                    }
+                  }
+                } else {
+                  throw new Error(`IV is not a string or Buffer: ${chunk.iv}`);
+                }
+              })();
               const authTag = encrypted.slice(encrypted.length - 16);
               const ciphertext = encrypted.slice(0, encrypted.length - 16);
               const decipher = crypto.createDecipheriv(

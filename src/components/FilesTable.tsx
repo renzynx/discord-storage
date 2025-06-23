@@ -2,6 +2,7 @@
 
 import { FileDeleteDialog } from "@/components/FileDeleteDialog";
 import { FilePropertiesDialog } from "@/components/FilePropertiesDialog";
+import { FilePreviewDialog } from "@/components/FilePreviewDialog";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -44,6 +45,7 @@ export default function FilesTable({
   const [selectedFile, setSelectedFile] = useState<any | null>(null);
   const [showProps, setShowProps] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -139,6 +141,14 @@ export default function FilesTable({
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
+                      <DropdownMenuItem
+                        onClick={() => {
+                          setSelectedFile(file);
+                          setShowPreview(true);
+                        }}
+                      >
+                        <Copy className="w-4 h-4 mr-2" /> Preview
+                      </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => handleDownload(file)}>
                         <Download className="w-4 h-4 mr-2" /> Download
                       </DropdownMenuItem>
@@ -216,6 +226,11 @@ export default function FilesTable({
         onOpenChange={setShowDelete}
         file={selectedFile}
         onDelete={confirmDelete}
+      />
+      <FilePreviewDialog
+        open={showPreview}
+        onOpenChange={setShowPreview}
+        file={selectedFile}
       />
     </div>
   );

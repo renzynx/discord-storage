@@ -126,7 +126,7 @@ export default function FilesTable({
             {files.map((file) => (
               <TableRow key={file.id}>
                 <TableCell>{file.name}</TableCell>
-                <TableCell>{file.type}</TableCell>
+                <TableCell>{file.type || "application/octet-stream"}</TableCell>
                 <TableCell>{(file.size / 1024 / 1024).toFixed(2)} MB</TableCell>
                 <TableCell>
                   {new Date(file.created_at).toLocaleString()}

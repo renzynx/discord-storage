@@ -27,7 +27,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Download, Info, Trash2 } from "lucide-react";
+import { Copy, Download, Info, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 
 export default function FilesTable({
@@ -141,6 +141,16 @@ export default function FilesTable({
                     <DropdownMenuContent>
                       <DropdownMenuItem onClick={() => handleDownload(file)}>
                         <Download className="w-4 h-4 mr-2" /> Download
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={async () => {
+                          await navigator.clipboard.writeText(
+                            `${window.location.origin}/api/files/${file.uuid}/download`
+                          );
+                        }}
+                      >
+                        <Copy className="w-4 h-4 mr-2" />
+                        Copy Link
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={() => {

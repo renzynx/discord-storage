@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 import { decryptUploadKey } from "@/lib/crypto.server";
 
 // Helper function to safely encode filename for Content-Disposition header
-function encodeFilename(filename) {
+function encodeFilename(filename: string) {
   // Remove or replace problematic characters and encode for RFC 5987
   const sanitized = filename.replace(/[^\w\s.-]/g, "_"); // Replace non-ASCII chars with underscore
   const encoded = encodeURIComponent(filename);

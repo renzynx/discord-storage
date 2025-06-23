@@ -5,6 +5,29 @@ import { importKey, encryptChunk } from "@/lib/crypto.client";
 import { WebhookQueue } from "@/lib/webhooks";
 import { CHUNK_SIZE } from "@/lib/constants";
 
+class Semaphore {
+  private tasks: (() => void)[] = [];
+  private count: number;
+  constructor(count: number) {
+    this.count = count;
+  }
+  async acquire() {
+    if (this.count > 0) {
+      this.count--;
+      return;
+    }
+    await new Promise<void>((resolve) => this.tasks.push(resolve));
+  }
+  release() {
+    this.count++;
+    if (this.tasks.length > 0) {
+      this.count--;
+      const next = this.tasks.shift();
+      if (next) next();
+    }
+  }
+}
+
 export const UploadContext = createContext<any>(null);
 export function useUploadContext() {
   return useContext(UploadContext);
@@ -170,25 +193,19 @@ export default function useUpload(webhooks?: any[]) {
           };
           chunkUrls[i] = await queue.send(sendWithRateLimit);
         };
-        // Upload all chunks concurrently (limit concurrency to 3 for Discord rate limits)
+
         const concurrency = 3;
-        let next = 0;
-        let running: Promise<void>[] = [];
-        async function enqueue() {
-          while (next < chunks.length) {
-            while (running.length < concurrency && next < chunks.length) {
-              running.push(uploadChunk(next++));
+        const semaphore = new Semaphore(concurrency);
+        await Promise.all(
+          chunks.map(async (_, i) => {
+            await semaphore.acquire();
+            try {
+              await uploadChunk(i);
+            } finally {
+              semaphore.release();
             }
-            await Promise.race(running);
-            const settled = await Promise.allSettled(running);
-            const finishedIdx = settled.findIndex(
-              (s) => s.status === "fulfilled" || s.status === "rejected"
-            );
-            if (finishedIdx !== -1) running.splice(finishedIdx, 1);
-          }
-          await Promise.all(running);
-        }
-        await enqueue();
+          })
+        );
         // 5. Finish upload
         setStatus("Finalizing upload...");
         const finishRes = await fetch("/api/upload/finish", {

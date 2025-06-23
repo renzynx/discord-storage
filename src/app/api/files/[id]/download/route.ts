@@ -60,27 +60,26 @@ export async function GET(
               const encrypted = Buffer.from(await res.arrayBuffer());
               const iv: Buffer = (() => {
                 if (typeof chunk.iv === "string") {
-                  let buf: Buffer;
-                  try {
-                    buf = Buffer.from(chunk.iv, "base64");
-                  } catch {
-                    throw new Error(
-                      `IV for chunk is not valid base64: ${chunk.iv}`
-                    );
-                  }
-                  if (!Buffer.isBuffer(buf) || buf.length !== 12) {
+                  const buf = Buffer.from(chunk.iv, "base64");
+                  if (buf.length !== 12) {
                     throw new Error(
                       `IV for chunk is not 12 bytes after base64 decode: got ${buf.length}`
                     );
                   }
                   return buf;
-                } else if (Buffer.isBuffer(chunk.iv)) {
-                  if (chunk.iv.length !== 12) {
+                } else if (
+                  chunk.iv &&
+                  typeof (chunk.iv as any).length === "number"
+                ) {
+                  // Defensive: handle Buffer or Uint8Array
+                  if ((chunk.iv as any).length !== 12) {
                     throw new Error(
-                      `IV buffer for chunk is not 12 bytes: got ${chunk.iv.length}`
+                      `IV buffer for chunk is not 12 bytes: got ${
+                        (chunk.iv as any).length
+                      }`
                     );
                   }
-                  return chunk.iv;
+                  return chunk.iv as Buffer;
                 } else {
                   throw new Error(
                     `IV is not a string or Buffer: ${JSON.stringify(chunk.iv)}`

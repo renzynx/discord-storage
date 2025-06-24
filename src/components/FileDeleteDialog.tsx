@@ -7,6 +7,7 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from "@/components/ui/alert-dialog";
+import { Button } from "./ui/button";
 
 export function FileDeleteDialog({
   open,
@@ -31,8 +32,10 @@ export function FileDeleteDialog({
         </p>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction onClick={onDelete} className="text-destructive">
-            Delete
+          <AlertDialogAction asChild>
+            <Button onClick={onDelete} variant="destructive">
+              Delete
+            </Button>
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

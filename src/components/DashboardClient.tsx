@@ -6,14 +6,6 @@ import Upload from "@/components/Upload";
 import WebhooksDialog from "@/components/WebhooksDialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useEffect, useState } from "react";
 
 export default function DashboardClient({ session }: { session: any }) {
@@ -64,7 +56,7 @@ export default function DashboardClient({ session }: { session: any }) {
           </div>
         </div>
 
-        <FilesTable onUploadClick={() => setUploadOpen(true)} />
+        <FilesTable />
       </div>
     </div>
   );

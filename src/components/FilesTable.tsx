@@ -31,11 +31,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Copy, Download, Info, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 
-export default function FilesTable({
-  onUploadClick,
-}: {
-  onUploadClick: () => void;
-}) {
+export default function FilesTable() {
   const [files, setFiles] = useState<any[]>([]);
   const [page, setPage] = useState(1);
   const [pageSize] = useState(10);
@@ -65,7 +61,6 @@ export default function FilesTable({
   const totalPages = Math.ceil(total / pageSize);
 
   const handleDownload = async (file: any) => {
-    // Use the direct stream endpoint for download
     const link = document.createElement("a");
     link.href = `/api/files/${file.uuid}/download`;
     link.download = file.name;
@@ -104,7 +99,7 @@ export default function FilesTable({
       </div>
       {loading ? (
         <div className="space-y-2">
-          {Array.from({ length: 5 }).map((_, i) => (
+          {Array.from({ length: 10 }).map((_, i) => (
             <div key={i} className="flex items-center gap-4">
               <Skeleton className="h-6 w-1/4" />
               <Skeleton className="h-6 w-1/6" />

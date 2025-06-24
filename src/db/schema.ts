@@ -1,5 +1,5 @@
 import { int, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { randomUUID } from "node:crypto";
+import { randomUUID } from "crypto";
 
 export const files = sqliteTable("files", {
   id: int().primaryKey({ autoIncrement: true }),

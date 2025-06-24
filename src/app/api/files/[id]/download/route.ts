@@ -3,68 +3,14 @@ import { db } from "@/db";
 import { files, chunks } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { decryptUploadKey } from "@/lib/crypto.server";
+import { refreshChunkUrls, encodeFilename } from "@/lib/utils";
 
-// Helper to refresh expired chunk URLs in batches
-async function refreshChunkUrls(chunksToRefresh: any[]) {
-  const urls = chunksToRefresh.map((c) => c.url);
-  const payload = {
-    method: "POST",
-    headers: {
-      Authorization: process.env.DISCORD_TOKEN || "",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ attachment_urls: urls }),
-  };
-  const res = await fetch(
-    "https://discord.com/api/v9/attachments/refresh-urls",
-    payload
-  );
-  if (!res.ok) throw new Error("Failed to refresh Discord URLs");
-  const json = await res.json();
-  // Discord returns { refreshed_urls: [{ url, refreshed }] }
-  if (
-    Array.isArray(json?.refreshed_urls) &&
-    json?.refreshed_urls[0].refreshed
-  ) {
-    // Update fileChunks and DB with new urls and expiries
-    for (let i = 0; i < json.refreshed_urls.length; i++) {
-      const refreshed = json.refreshed_urls[i];
-      const url = refreshed.url;
-      const params = new URL(url).searchParams;
-      const expr = new Date(parseInt(params.get("ex") ?? "", 16) * 1000);
-      // Update in DB
-      await db
-        .update(chunks)
-        .set({ url, url_expires: expr })
-        .where(eq(chunks.url, urls[i]));
-      // Also update in-memory
-      chunksToRefresh[i].url = url;
-      chunksToRefresh[i].url_expires = expr;
-    }
-  }
-  return json.refreshed_urls;
-}
-
-// Helper function to safely encode filename for Content-Disposition header
-function encodeFilename(filename: string) {
-  // Remove or replace problematic characters and encode for RFC 5987
-  const sanitized = filename.replace(/[^\w\s.-]/g, "_"); // Replace non-ASCII chars with underscore
-  const encoded = encodeURIComponent(filename);
-
-  // Use RFC 5987 format for better Unicode support
-  return `filename*=UTF-8''${encoded}; filename="${sanitized}"`;
-}
-
-// GET /api/files/[id]/stream
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  // No auth check for stream download
-
-  // Use uuid for file lookup
   const fileUuid = (await params).id;
-  // Get file metadata
+
   const file = await db
     .select()
     .from(files)
@@ -75,7 +21,6 @@ export async function GET(
     return new NextResponse("File not found", { status: 404 });
   }
 
-  // Get all chunks for this file
   const fileChunks = await db
     .select()
     .from(chunks)
@@ -97,6 +42,7 @@ export async function GET(
   const now = Date.now();
   // Find chunks with expired or soon-to-expire URLs (5 min buffer)
   const EXPIRE_BUFFER_MS = 5 * 60 * 1000;
+
   const expiredChunks = fileChunks.filter(
     (c) =>
       c.url_expires &&
@@ -162,6 +108,7 @@ export async function GET(
                   );
                 }
               })();
+
               const authTag = encrypted.slice(encrypted.length - 16);
               const ciphertext = encrypted.slice(0, encrypted.length - 16);
               const decipher = crypto.createDecipheriv(
@@ -170,10 +117,12 @@ export async function GET(
                 iv
               );
               decipher.setAuthTag(authTag);
+
               const decrypted = Buffer.concat([
                 decipher.update(ciphertext),
                 decipher.final(),
               ]);
+
               return { decrypted, error: null };
             } catch (e) {
               // Attach IV and error message for easier debugging
@@ -188,6 +137,7 @@ export async function GET(
             }
           })
         );
+
         // Enqueue in order, stop on error
         for (const [i, result] of results.entries()) {
           if (result.error) {
@@ -209,7 +159,7 @@ export async function GET(
     headers: {
       "Content-Type": file.type || "application/octet-stream",
       "Content-Disposition": `attachment; ${encodeFilename(file.name)}`,
-      "Content-Length": file.size.toString(), // Use the size from file metadata
+      "Content-Length": file.size.toString(),
     },
   });
 }
